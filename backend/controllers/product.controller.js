@@ -23,7 +23,7 @@ export const getFeaturedProducts = async (req, res) => {
         // if not in redis, fetch from mongodb
         // .lean() is gonna return a plain javascript object instead of mongodb document
         // which is good for performance
-        featuredProducts = await Product.find({ isFeatured: true }).lean();
+        featuredProducts = await Product.find({ IsFeatured: true }).lean();
 
         if (!featuredProducts) {
             return res
@@ -37,6 +37,28 @@ export const getFeaturedProducts = async (req, res) => {
         res.json({ featuredProducts });
     } catch (error) {
         console.log("Error in getFeaturedProducts controller", error.message);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+export const getRecommendedProduct = async (req, res) => {
+    try {
+        const products = await Product.aggregate([
+            {
+                $sample: { size: 3 },
+            },
+            {
+                $project: {
+                    _id: 1,
+                    name: 1,
+                    description: 1,
+                    image: 1,
+                    price: 1,
+                },
+            },
+        ]);
+    } catch (error) {
+        console.log("Error in getRecommendedProduct controller", error.message);
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
@@ -97,3 +119,41 @@ export const deleteProduct = async (req, res) => {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
+
+export const getProductByCategory = async (req, res) => {
+    const { category } = req.params;
+    try {
+        const products = await Product.find({ category });
+    } catch (error) {
+        console.log("Error in getProductByCategory controller", error.message);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+export const toggleFeaturedProduct = async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id);
+        if (product) {
+            product.IsFeatured = !product.IsFeatured;
+            const updatedProduct = await product.save();
+            await updateFeaturedProductsCache();
+            res.json({ updatedProduct });
+        } else {
+            res.status(404).json({ message: "Product not found" });
+        }
+    } catch (error) {
+        console.log("Error in toggleFeaturedProduct controller", error.message);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+async function updateFeaturedProductsCache() {
+    try {
+        const featuredProducts = await Product.find({
+            IsFeatured: true,
+        }).lean();
+        await redis.set("featured_products", JSON.stringify(featuredProducts));
+    } catch (error) {
+        console.log("error in update cache function");
+    }
+}
