@@ -25,6 +25,7 @@ const couponSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true,
+            unique: true,
         },
     },
     {
@@ -32,4 +33,6 @@ const couponSchema = new mongoose.Schema(
     }
 );
 
-export const Coupon = mongoose.model("Coupon", couponSchema);
+const Coupon = mongoose.model("Coupon", couponSchema);
+
+export default Coupon;

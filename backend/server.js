@@ -22,5 +22,5 @@ app.use("/api/coupons", couponRoutes);
 
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    connectDB(); // Connect to MongoDB
+    connectDB(); // Connect to MongoDB database
 });
