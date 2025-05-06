@@ -8,7 +8,12 @@ import { Toaster } from "react-hot-toast";
 import { useUserStore } from "./stores/useUserStore.js";
 
 function App() {
-    const { user } = useUserStore();
+    const { user, checkAuth } = useUserStore();
+
+    useEffect(() => {
+        checkAuth();
+    }, [checkAuth]);
+
     return (
         <div className="min-h-screen bg-gray-900 text-white relative overflow-hidden ">
             {/* Background gradient*/}
