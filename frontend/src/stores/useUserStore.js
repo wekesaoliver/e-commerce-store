@@ -47,9 +47,23 @@ export const useUserStore = create((set, get) => ({
         set({ checkingAuth: true });
         try {
             const response = await axios.get("/auth/profile");
-            set({ user: response.data, checkingAuth: false })
+            set({ user: response.data, checkingAuth: false });
         } catch (error) {
             set({ checkingAuth: false, user: null });
         }
     },
+
+    logout: async () => {
+        try {
+            await axios.post("/auth/logout");
+            set({ user: null });
+        } catch (error) {
+            toast.error(
+                error.response?.data?.message ||
+                    "An error occured during logout"
+            );
+        }
+    },
 }));
+
+//TODO: Implement the axios interceptors for refreshing access token
