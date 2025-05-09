@@ -24,6 +24,6 @@ router.post("/", protectRoute, adminRoute, createProduct);
 
 router.patch("/:id", protectRoute, adminRoute, toggleFeaturedProduct);
 
-router.post("/:id", protectRoute, adminRoute, deleteProduct);
+router.delete("/:id", protectRoute, adminRoute, deleteProduct);
 
 export default router;
