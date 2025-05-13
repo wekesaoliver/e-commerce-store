@@ -30,6 +30,7 @@ export const createCheckoutSession = async (req, res) => {
                     },
                     unit_amount: amount,
                 },
+                quantity: product.quantity,
             };
         });
 
@@ -56,7 +57,9 @@ export const createCheckoutSession = async (req, res) => {
             discounts: coupon
                 ? [
                       {
-                          coupon: await createStripeCoupon(coupon.discount),
+                          coupon: await createStripeCoupon(
+                              coupon.discountPercentage
+                          ),
                       },
                   ]
                 : [],
@@ -80,7 +83,16 @@ export const createCheckoutSession = async (req, res) => {
             id: session.id,
             totalAmount: totalAmount / 100,
         });
-    } catch (error) {}
+    } catch (error) {
+        console.error(
+            "Error in createCheckoutSession controller",
+            error.message
+        );
+        res.status(500).json({
+            message: "Error processing checkout",
+            error: error.message,
+        });
+    }
 };
 
 export const checkoutSuccess = async (req, res) => {
@@ -89,19 +101,25 @@ export const checkoutSuccess = async (req, res) => {
         const session = await stripe.checkout.sessions.retrieve(sessionId);
 
         if (session.payment_status === "paid") {
+            // Handle coupon deactivation
             if (session.metadata.couponCode) {
-                await Coupon.findOneAndUpdate(
-                    {
-                        code: session.metadata.couponCode,
-                        user: session.metadata.userId,
-                    },
-                    {
-                        isActive: false,
-                    }
-                );
+                try {
+                    await Coupon.findOneAndUpdate(
+                        {
+                            code: session.metadata.couponCode,
+                            userId: session.metadata.userId,
+                        },
+                        {
+                            isActive: false,
+                        }
+                    );
+                } catch (couponError) {
+                    console.error("Error deactivating coupon:", couponError);
+                    // Continue with order creation even if coupon deactivation fails
+                }
             }
 
-            //create a new order
+            // Create a new order
             const products = JSON.parse(session.metadata.products);
             const newOrder = new Order({
                 user: session.metadata.userId,
@@ -110,8 +128,9 @@ export const checkoutSuccess = async (req, res) => {
                     quantity: product.quantity,
                     price: product.price,
                 })),
-                totalAmount: session.amount_total / 100, //convert from cents to dollars
+                totalAmount: session.amount_total / 100, // convert from cents to dollars
                 stripeSessionId: sessionId,
+                status: "completed",
             });
 
             await newOrder.save();
@@ -119,15 +138,21 @@ export const checkoutSuccess = async (req, res) => {
             res.status(200).json({
                 success: true,
                 message:
-                    "payment successful, order created, and coupon deactivated if used",
+                    "Payment successful, order created, and coupon deactivated if used",
                 orderId: newOrder._id,
+            });
+        } else {
+            res.status(400).json({
+                success: false,
+                message: "Payment not completed",
             });
         }
     } catch (error) {
         console.error("Error processing successful checkout:", error);
         res.status(500).json({
-            message: "Error processing successful checkout:",
-            error: error.messasge,
+            success: false,
+            message: "Error processing successful checkout",
+            error: error.message,
         });
     }
 };
@@ -141,6 +166,8 @@ async function createStripeCoupon(discountPercentage) {
 }
 
 async function createNewCoupon(userId) {
+    await Coupon.findOneAndDelete({ userId });
+
     const newCoupon = new Coupon({
         code: "GIFT" + Math.random().toString(36).substring(2, 8).toUpperCase(),
         discountPercentage: 10,
