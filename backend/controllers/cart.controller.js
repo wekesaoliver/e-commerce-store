@@ -46,15 +46,19 @@ export const addToCart = async (req, res) => {
 
 export const removeAllFromCart = async (req, res) => {
     try {
-        const { productId } = req.body;
         const user = req.user;
-        if (!productId) {
-            user.cartItems = [];
-        } else {
+        const { productId } = req.body || {};
+
+        if (productId) {
+            // Remove specific product
             user.cartItems = user.cartItems.filter(
                 (item) => item.id !== productId
             );
+        } else {
+            // Clear entire cart
+            user.cartItems = [];
         }
+
         await user.save();
         res.json(user.cartItems);
     } catch (error) {
