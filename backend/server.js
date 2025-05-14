@@ -10,6 +10,7 @@ import cartRoutes from "./routes/cart.route.js";
 import couponRoutes from "./routes/coupon.route.js";
 import paymentRoutes from "./routes/payment.route.js";
 import analyticsRoutes from "./routes/analytics.route.js";
+
 dotenv.config();
 
 const app = express();
@@ -17,9 +18,11 @@ const PORT = process.env.PORT || 5000;
 
 const __dirname = path.resolve();
 
-app.use(express.json({ limit: "10mb" })); // Middleware to parse JSON bodies
-app.use(cookieParser()); // Middleware to parse cookies
+// Middleware
+app.use(express.json({ limit: "10mb" }));
+app.use(cookieParser());
 
+// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/cart", cartRoutes);
@@ -27,15 +30,26 @@ app.use("/api/coupons", couponRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/analytics", analyticsRoutes);
 
+// Serve static files in production
 if (process.env.NODE_ENV === "production") {
     app.use(express.static(path.join(__dirname, "/frontend/dist")));
 
-    app.get("*", (req, res) => {
+    // Handle all other routes by serving the index.html
+    app.get("/*", (req, res) => {
         res.sendFile(path.resolve(__dirname, "frontend", "dist", "index.html"));
     });
 }
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).json({
+        message: "Something went wrong!",
+        error: err.message,
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
-    connectDB(); // Connect to MongoDB database
+    connectDB();
 });
